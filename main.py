@@ -17,16 +17,19 @@ def main():
 
     tile = blocks.Tile(red,white)
     grid = blocks.Grid()
+    wiper = blocks.Wiper(150)
 
     while 1:
-        clock.tick(60)
+        time = clock.tick(60)/1000
         for event in pygame.event.get():
             if event.type == QUIT:
                 return
 
+        wiper.update(time)
         screen.fill(charcoal)
         grid.draw(screen)
         screen.blit(tile.image,pygame.mouse.get_pos())
+        wiper.draw(screen)
         pygame.display.flip()
 
 if __name__ == '__main__':

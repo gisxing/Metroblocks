@@ -72,10 +72,20 @@ class Grid(pygame.sprite.Group):
 
 # The line that wipes out blocks
 class Wiper(pygame.sprite.GroupSingle):
-    def __init__(self):
+    def __init__(self, speed):
         pygame.sprite.GroupSingle.__init__(self)
         self.sprite = pygame.sprite.Sprite()
         self.sprite.image = pygame.Surface((2,450))
         self.sprite.image.fill(yellow)
         self.sprite.rect = self.sprite.image.get_rect()
         self.sprite.rect.topleft = (0,0)
+        # Velocity is measured in pixels per second
+        self.speed = speed
+        self.left_float = 0.0
+
+    def update(self, time):
+        self.left_float = self.left_float + self.speed*time
+        if (self.left_float > 748):
+            self.left_float = 0.0
+        self.sprite.rect.left = self.left_float
+        
