@@ -4,6 +4,8 @@ import pygame, random as rnd
 
 white = (255,255,255)
 black = (0,0,0)
+grey_lite = (128,128,128)
+yellow = (255,255,0)
 layouts = dict([(1,(0,0,0,0)), (2,(0,0,0,1)), (3,(0,0,1,1)), (4, (1,0,1,1)),
                (5, (1,1,1,1)), (6, (0,1,0,1))])
 blocksize = (80,80)
@@ -51,16 +53,29 @@ class Block(pygame.sprite.Group):
 
     #def update(self):
 
+class Line(pygame.sprite.Sprite):
+    def __init__(self, size, pos):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface(size)
+        self.image.fill(grey_lite)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = pos
+        
 # Draws grid of 15 vertical lines x 9 horizontal lines
 class Grid(pygame.sprite.Group):
     def __init__(self):
         pygame.sprite.Group.__init__(self)
-        
+        for i in range(1,10):
+            self.add(Line((720,2),(0,45*i)))
+        for i in range(1,16):
+            self.add(Line((2,450),(45*i,0)))
 
-if __name__ == '__main__':
-    x = Block()
-    print("{0}".format(x.layout))
-    x.RotateCounterclockwise()
-    print("{0}".format(x.layout))
-    x.RotateClockwise()
-    print("{0}".format(x.layout))
+# The line that wipes out blocks
+class Wiper(pygame.sprite.GroupSingle):
+    def __init__(self):
+        pygame.sprite.GroupSingle.__init__(self)
+        self.sprite = pygame.sprite.Sprite()
+        self.sprite.image = pygame.Surface((2,450))
+        self.sprite.image.fill(yellow)
+        self.sprite.rect = self.sprite.image.get_rect()
+        self.sprite.rect.topleft = (0,0)

@@ -16,6 +16,7 @@ def main():
     pygame.mouse.set_visible(True)
 
     tile = blocks.Tile(red,white)
+    grid = blocks.Grid()
 
     while 1:
         clock.tick(60)
@@ -24,6 +25,7 @@ def main():
                 return
 
         screen.fill(charcoal)
+        grid.draw(screen)
         screen.blit(tile.image,pygame.mouse.get_pos())
         pygame.display.flip()
 
