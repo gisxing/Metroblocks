@@ -12,6 +12,8 @@ layouts = dict([(1,(0,0,0,0)), (2,(0,0,0,1)), (3,(0,0,1,1)), (4, (1,0,1,1)),
 tilesize = (45,45)
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
+flagliningsize = (tilesize[0]-2,tilesize[1]-2)
+flaginnersize = (flagliningsize[0]-2,flagliningsize[1]-2)
 griddimensions = (720,450)
 tiledropwait = 0.05
 
@@ -80,6 +82,10 @@ class BlockManager(pygame.sprite.Group):
         else:
             return False
 
+    # If 2x2 is found, tiles in 2x2 are flagged
+    def Check2x2(self,tile):
+        pass
+
     def update(self, time):        
         self.wiper.update(time)
         if self.fallingblock:
@@ -103,21 +109,25 @@ class BlockManager(pygame.sprite.Group):
                     self.block.tiledict[3].DropOne()
                 self.block.tiledict[3].RaiseOne()
                 self.add(self.block.tiledict[3])
+                
                 self.block.tiledict[0].DropOne()
                 while not self.CheckTileCollision(self.block.tiledict[0]):
                     self.block.tiledict[0].DropOne()
                 self.block.tiledict[0].RaiseOne()
                 self.add(self.block.tiledict[0])
+                
                 self.block.tiledict[2].DropOne()
                 while not self.CheckTileCollision(self.block.tiledict[2]):
                     self.block.tiledict[2].DropOne()
                 self.block.tiledict[2].RaiseOne()
                 self.add(self.block.tiledict[2])
+                
                 self.block.tiledict[1].DropOne()
                 while not self.CheckTileCollision(self.block.tiledict[1]):
                     self.block.tiledict[1].DropOne()
                 self.block.tiledict[1].RaiseOne()
                 self.add(self.block.tiledict[1])
+                
                 self.block.empty()
                 self.droppingblocktiles = False
                     
@@ -137,15 +147,16 @@ class BlockManager(pygame.sprite.Group):
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
         pygame.sprite.Sprite.__init__(self)
-        self.border = pygame.Surface
+        self.color1 = color1
+        self.color2 = color2
         self.image = pygame.Surface(tilesize)
         self.image.fill(color1)
-        self.lining = pygame.Surface(liningsize)
-        self.lining.fill(color2)
-        self.inner = pygame.Surface(innersize)
-        self.inner.fill(color1)
-        self.image.blit(self.lining,(2,2))
-        self.image.blit(self.inner,(4,4))
+        lining = pygame.Surface(liningsize)
+        lining.fill(color2)
+        inner = pygame.Surface(innersize)
+        inner.fill(color1)
+        self.image.blit(lining,(2,2))
+        self.image.blit(inner,(4,4))
         self.rect = self.image.get_rect()
 
     def DropOne(self):
@@ -153,6 +164,30 @@ class Tile(pygame.sprite.Sprite):
 
     def RaiseOne(self):
         self.rect.top -= tilesize[1]
+
+    # Flags tiles according to position in 2x2
+    # 0: Topright
+    # 1: Topleft
+    # 2: Bottomleft
+    # 3: Bottomright
+    def FlagTile(self,pos):
+        self.image.fill(self.color1)
+        lining = pygame.Surface(flagliningsize)
+        inner = pygame.Surface(flaginnersize)
+        lining.fill(color2)
+        inner.fill(color1)
+        if pos == 0:
+            self.image.blit(lining,(2,2))
+            self.image.blit(inner,(4,4))
+        elif pos == 1:
+            self.image.blit(lining,(0,2))
+            self.image.blit(inner,(0,4))
+        elif pos == 2:
+            self.image.blit(lining,(2,0))
+            self.image.blit(inner,(4,0))
+        else:
+            self.image.blit(lining,(0,0))
+            self.image.blit(inner,(0,0))
 
 # Returns a random block, tiles arraged
 # 0 1
@@ -198,10 +233,10 @@ class Block(pygame.sprite.Group):
         s1 = self.tiledict[1]
         s2 = self.tiledict[2]
         s3 = self.tiledict[3]
-        self.tiledict[0] = s3
-        self.tiledict[1] = s0
-        self.tiledict[2] = s1
-        self.tiledict[3] = s2
+        self.tiledict[0] = s1
+        self.tiledict[1] = s2
+        self.tiledict[2] = s3
+        self.tiledict[3] = s0
 
     def RotateClockwise(self):
         x0 = self.sprites()[0].rect.topleft
@@ -216,10 +251,10 @@ class Block(pygame.sprite.Group):
         s1 = self.tiledict[1]
         s2 = self.tiledict[2]
         s3 = self.tiledict[3]
-        self.tiledict[0] = s1
-        self.tiledict[1] = s2
-        self.tiledict[2] = s3
-        self.tiledict[3] = s0
+        self.tiledict[0] = s3
+        self.tiledict[1] = s0
+        self.tiledict[2] = s1
+        self.tiledict[3] = s2
 
     def MoveRight(self):
         x_list = []
