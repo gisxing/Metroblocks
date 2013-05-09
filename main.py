@@ -18,7 +18,7 @@ def main():
 
     color1 = red
     color2 = white
-    manager = blocks.BlockManager(red,white,150,0.75,
+    manager = blocks.BlockManager(red,white,150,1.5,
                                   (screendimensions[0]-griddimensions[0])/2,
                                   screendimensions[1]-griddimensions[1]-20)
     tile = blocks.Tile(color1,color2)
@@ -34,7 +34,10 @@ def main():
                     paused = not paused
                 # Send keyboard input to manager to be handled
                 if not paused:
-                    manager.HandleInput(event.key)
+                    manager.KeydownHandler(event.key)
+            elif event.type == KEYUP:
+                if not paused:
+                    manager.KeyupHandler(event.key)
 
         if not paused:
             manager.update(time)

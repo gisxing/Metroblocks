@@ -12,61 +12,85 @@ layouts = dict([(1,(0,0,0,0)), (2,(0,0,0,1)), (3,(0,0,1,1)), (4, (1,0,1,1)),
 tilesize = (45,45)
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
-blockwait = 500
 griddimensions = (720,450)
 
 class BlockManager(pygame.sprite.Group):
-    def __init__(self, color1, color2, wiperspeed, dropspeed, xoffset=0,
+    def __init__(self, color1, color2, wiperspeed, fallwait, xoffset=0,
                  yoffset=0):
         pygame.sprite.Group.__init__(self)
         self.color1 = color1
         self.color2 = color2
-        self.waitingblock = False
-        self.waitingcount = 0.0
+        self.waitcount = 0.0
         self.fallingblock = False
         # y = 0,1 are above the gridlines, blocks wait here
         self.grid = [[0 for y in range(12)] for x in range(16)]
         self.xoffset = xoffset
         self.yoffset = yoffset
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
-        self.dropspeed = dropspeed
+        self.fallwait = fallwait
         self.grid = Gridlines(self.xoffset,self.yoffset)
 
-    def HandleInput(self, key):
+    def KeydownHandler(self, key):
         if key == K_x:
             self.block.RotateClockwise()
         elif key == K_z:
             self.block.RotateCounterclockwise()
         elif key == K_RIGHT:
-            if self.block.x + tilesize[0]*2 < griddimensions[0]+self.xoffset:
-                self.block.MoveRight()
-        elif key == K_LEFT and self.block.x > self.xoffset:
+            self.block.MoveRight()
+            if self.CheckCollision():
+                self.block.MoveLeft()
+        elif key == K_LEFT:
             self.block.MoveLeft()
+            if self.CheckCollision():
+                self.block.MoveRight()
+        elif key == K_SPACE:
+            self.oldfallwait = self.fallwait
+            self.fallwait = 0.08
+
+    def KeyupHandler(self, key):
+        if key == K_SPACE:
+            self.fallwait = self.oldfallwait
+
+    def CheckCollision(self):
+        if pygame.sprite.groupcollide(self.block,self,False,False):
+            print('collide self')
+            return True
+        elif self.block.x < self.xoffset:
+            print('collide left side')
+            return True
+        elif self.block.x > self.xoffset+griddimensions[0]-2*tilesize[0]:
+            print('collide right side')
+            return True
+        elif self.block.y > self.yoffset+griddimensions[1]-2*tilesize[1]:
+            print('collide bottom')
+            return True
+        else:
+            return False
 
     def update(self, time):        
         self.wiper.update(time)
-        if (self.waitingblock):
-            if (self.waitingcount > blockwait):
-                self.waitingblock = False
-                self.fallingblock = True
+        if self.fallingblock:
+            if self.waitcount < self.fallwait:
+                self.waitcount += time
             else:
-                self.waitingcount = self.waitingcount + time
-        elif (self.fallingblock):
-            if (self.block.landed):
-                self.fallingblock = False
+                self.block.DropOne()
+                self.waitcount = 0.0
+                if self.CheckCollision():
+                    self.block.RaiseOne()
+                    self.fallingblock = False
+                    for sp in self.block.sprites():
+                        self.add(sp)
+                    self.block.empty()
         else:
             self.block = Block(self.color1,self.color2,
                                griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2)
-            self.block.landed = False            
-            self.fallingblock = False
-            self.waitingblock = True
-            self.waitingcount = 0.0
-            self.add(self.block)
+            self.fallingblock = True
         pygame.sprite.Group.update(self)
 
     def draw(self, Surface):
         self.grid.draw(Surface)
+        pygame.sprite.Group.draw(self,Surface)
         self.block.draw(Surface)
         self.wiper.draw(Surface)
 
@@ -132,16 +156,36 @@ class Block(pygame.sprite.Group):
         self.sprites()[3].rect.topleft = x0
 
     def MoveRight(self):
+        x_list = []
         for sp in self.sprites():
             sp.rect.left += tilesize[0]
-        self.x = self.sprites()[0].rect.left
-        self.y = self.sprites()[0].rect.top
+            x_list.append(sp.rect.left)
+        if x_list:
+            self.x = min(x_list)
 
     def MoveLeft(self):
+        x_list = []
         for sp in self.sprites():
             sp.rect.left -= tilesize[0]
-        self.x = self.sprites()[0].rect.left
-        self.y = self.sprites()[0].rect.top
+            x_list.append(sp.rect.left)
+        if x_list:
+            self.x = min(x_list)
+
+    def DropOne(self):
+        y_list = []
+        for sp in self.sprites():
+            sp.rect.top += tilesize[1]
+            y_list.append(sp.rect.top)
+        if y_list:
+            self.y = min(y_list)
+
+    def RaiseOne(self):
+        y_list = []
+        for sp in self.sprites():
+            sp.rect.top -= tilesize[1]
+            y_list.append(sp.rect.top)
+        if y_list:
+            self.y = min(y_list)
         
 
 class Line(pygame.sprite.Sprite):
