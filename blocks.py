@@ -8,10 +8,11 @@ grey_lite = (128,128,128)
 yellow = (255,255,0)
 layouts = dict([(1,(0,0,0,0)), (2,(0,0,0,1)), (3,(0,0,1,1)), (4, (1,0,1,1)),
                (5, (1,1,1,1)), (6, (0,1,0,1))])
-blocksize = (80,80)
 tilesize = (45,45)
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
+blockwait = 500
+griddimensions = (720,450)
 
 class BlockManager(pygame.sprite.Group):
     def __init__(self, color1, color2, wiperspeed, dropspeed, xoffset=0,
@@ -19,26 +20,42 @@ class BlockManager(pygame.sprite.Group):
         pygame.sprite.Group.__init__(self)
         self.color1 = color1
         self.color2 = color2
-        self.waitingcount = -1
+        self.waitingblock = False
+        self.waitingcount = 0.0
         self.fallingblock = False
-        self.grid = [[0 for y in range(10)] for x in range(16)]
+        # y = 0,1 are above the gridlines, blocks wait here
+        self.grid = [[0 for y in range(12)] for x in range(16)]
         self.xoffset = xoffset
         self.yoffset = yoffset
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
         self.dropspeed = dropspeed
         self.grid = Gridlines(self.xoffset,self.yoffset)
 
-    def update(self, time):
+    def update(self, time):        
         self.wiper.update(time)
-        if (self.waitingblock == -1):
-            
+        if (self.waitingblock):
+            if (self.waitingcount > blockwait):
+                self.waitingblock = False
+                self.fallingblock = True
+            else:
+                self.waitingcount = self.waitingcount + time
+        elif (self.fallingblock):
+            if (self.block.landed):
+                self.fallingblock = False
         else:
-            self.block = Block(self.color1,self.color2)
-            self.add(self.block)
+            self.block = Block(self.color1,self.color2,
+                               griddimensions[0]/2-tilesize[0]+self.xoffset,
+                               self.yoffset-tilesize[1]*2)
+            self.block.landed = False            
             self.fallingblock = False
+            self.waitingblock = True
+            self.waitingcount = 0.0
+            self.add(self.block)
+        pygame.sprite.Group.update(self)
 
     def draw(self, Surface):
         self.grid.draw(Surface)
+        self.block.draw(Surface)
         self.wiper.draw(Surface)
 
 class Tile(pygame.sprite.Sprite):
@@ -53,32 +70,54 @@ class Tile(pygame.sprite.Sprite):
         self.inner.fill(color1)
         self.image.blit(self.lining,(2,2))
         self.image.blit(self.inner,(4,4))
+        self.rect = self.image.get_rect()
 
 # Returns a random block
 class Block(pygame.sprite.Group):
-    def __init__(self, color1, color2):
+    def __init__(self, color1, color2, x=0, y=0):
         pygame.sprite.Group.__init__(self)
-        self.layout = layouts[rnd.randint(1,6)]
-        for i in self.layout:
+        layout = layouts[rnd.randint(1,6)]
+        # x and y are the coordinates of the top left corner of block
+        self.x = x
+        self.y = y
+        for i in layout:
             if i == 0:
                 self.add(Tile(color1,color2))
             else:
                 self.add(Tile(color2,color1))
-        self.pos = (0,0)
+        for i in range(4):
+            if i == 0:
+                self.sprites()[i].rect.left = x
+                self.sprites()[i].rect.top = y
+            elif i == 1:
+                self.sprites()[i].rect.left = x + tilesize[0]
+                self.sprites()[i].rect.top = y
+            elif i == 2:
+                self.sprites()[i].rect.left = x + tilesize[0]
+                self.sprites()[i].rect.top = y + tilesize[1]
+            else:
+                self.sprites()[i].rect.left = x
+                self.sprites()[i].rect.top = y + tilesize[1]
 
     def RotateCounterclockwise(self):
-        x0 = self.layout[0]
-        x1 = self.layout[1]
-        x2 = self.layout[2]
-        x3 = self.layout[3]
-        self.layout = (x3,x0,x1,x2)
+        x0 = self.sprites()[0].rect.topleft
+        x1 = self.sprites()[1].rect.topleft
+        x2 = self.sprites()[2].rect.topleft
+        x3 = self.sprites()[3].rect.topleft
+        self.sprites()[0].rect.topleft = x1
+        self.sprites()[1].rect.topleft = x2
+        self.sprites()[2].rect.topleft = x3
+        self.sprites()[3].rect.topleft = x0
 
     def RotateClockwise(self):
-        x0 = self.layout[0]
-        x1 = self.layout[1]
-        x2 = self.layout[2]
-        x3 = self.layout[3]
-        self.layout = (x1,x2,x3,x0)
+        x0 = self.sprites()[0].rect.topleft
+        x1 = self.sprites()[1].rect.topleft
+        x2 = self.sprites()[2].rect.topleft
+        x3 = self.sprites()[3].rect.topleft
+        self.sprites()[0].rect.topleft = x3
+        self.sprites()[1].rect.topleft = x0
+        self.sprites()[2].rect.topleft = x1
+        self.sprites()[3].rect.topleft = x2
 
 class Line(pygame.sprite.Sprite):
     def __init__(self, size, pos):
