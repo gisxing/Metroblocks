@@ -1,6 +1,7 @@
 # Andrew Quintanilla
 # Handles blocks
 import pygame, random as rnd
+from pygame.locals import *
 
 white = (255,255,255)
 black = (0,0,0)
@@ -30,6 +31,12 @@ class BlockManager(pygame.sprite.Group):
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
         self.dropspeed = dropspeed
         self.grid = Gridlines(self.xoffset,self.yoffset)
+
+    def HandleInput(self, KeyASCII):
+        if KeyASCII == K_x:
+            self.block.RotateClockwise()
+        elif KeyASCII == K_z:
+            self.block.RotateCounterclockwise()
 
     def update(self, time):        
         self.wiper.update(time)
@@ -104,20 +111,20 @@ class Block(pygame.sprite.Group):
         x1 = self.sprites()[1].rect.topleft
         x2 = self.sprites()[2].rect.topleft
         x3 = self.sprites()[3].rect.topleft
-        self.sprites()[0].rect.topleft = x1
-        self.sprites()[1].rect.topleft = x2
-        self.sprites()[2].rect.topleft = x3
-        self.sprites()[3].rect.topleft = x0
+        self.sprites()[0].rect.topleft = x3
+        self.sprites()[1].rect.topleft = x0
+        self.sprites()[2].rect.topleft = x1
+        self.sprites()[3].rect.topleft = x2        
 
     def RotateClockwise(self):
         x0 = self.sprites()[0].rect.topleft
         x1 = self.sprites()[1].rect.topleft
         x2 = self.sprites()[2].rect.topleft
         x3 = self.sprites()[3].rect.topleft
-        self.sprites()[0].rect.topleft = x3
-        self.sprites()[1].rect.topleft = x0
-        self.sprites()[2].rect.topleft = x1
-        self.sprites()[3].rect.topleft = x2
+        self.sprites()[0].rect.topleft = x1
+        self.sprites()[1].rect.topleft = x2
+        self.sprites()[2].rect.topleft = x3
+        self.sprites()[3].rect.topleft = x0
 
 class Line(pygame.sprite.Sprite):
     def __init__(self, size, pos):

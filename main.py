@@ -32,8 +32,11 @@ def main():
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     paused = not paused
+                # Send keyboard input to manager to be handled
+                if not paused:
+                    manager.HandleInput(event.key)
 
-        if (not paused):
+        if not paused:
             manager.update(time)
         screen.fill(charcoal)
         manager.draw(screen)
