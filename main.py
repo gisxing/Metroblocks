@@ -11,6 +11,7 @@ charcoal = (37,37,38)
 def main():
     screendimensions = (800,600)
     griddimensions = (720,450)
+    os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (50,50)
     pygame.init()
     screen = pygame.display.set_mode(screendimensions)
     clock = pygame.time.Clock()
@@ -21,7 +22,6 @@ def main():
     manager = blocks.BlockManager(red,white,150,1.5,
                                   (screendimensions[0]-griddimensions[0])/2,
                                   screendimensions[1]-griddimensions[1]-20)
-    tile = blocks.Tile(color1,color2)
     paused = False
 
     while 1:

@@ -13,6 +13,7 @@ tilesize = (45,45)
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
 griddimensions = (720,450)
+tiledropwait = 0.05
 
 class BlockManager(pygame.sprite.Group):
     def __init__(self, color1, color2, wiperspeed, fallwait, xoffset=0,
@@ -21,7 +22,9 @@ class BlockManager(pygame.sprite.Group):
         self.color1 = color1
         self.color2 = color2
         self.waitcount = 0.0
+        self.tilewait = 0.0
         self.fallingblock = False
+        self.droppingblocktiles = False
         # y = 0,1 are above the gridlines, blocks wait here
         self.grid = [[0 for y in range(12)] for x in range(16)]
         self.xoffset = xoffset
@@ -37,21 +40,21 @@ class BlockManager(pygame.sprite.Group):
             self.block.RotateCounterclockwise()
         elif key == K_RIGHT:
             self.block.MoveRight()
-            if self.CheckCollision():
+            if self.CheckBlockCollision():
                 self.block.MoveLeft()
         elif key == K_LEFT:
             self.block.MoveLeft()
-            if self.CheckCollision():
+            if self.CheckBlockCollision():
                 self.block.MoveRight()
-        elif key == K_SPACE:
+        elif key == K_DOWN:
             self.oldfallwait = self.fallwait
             self.fallwait = 0.08
 
     def KeyupHandler(self, key):
-        if key == K_SPACE:
+        if key == K_DOWN:
             self.fallwait = self.oldfallwait
 
-    def CheckCollision(self):
+    def CheckBlockCollision(self):
         if pygame.sprite.groupcollide(self.block,self,False,False):
             print('collide self')
             return True
@@ -67,6 +70,16 @@ class BlockManager(pygame.sprite.Group):
         else:
             return False
 
+    def CheckTileCollision(self,tile):
+        if pygame.sprite.spritecollide(tile,self,False):
+            print('collide self')
+            return True
+        elif tile.rect.bottom > griddimensions[1]+self.yoffset:
+            print('collide bottom')
+            return True
+        else:
+            return False
+
     def update(self, time):        
         self.wiper.update(time)
         if self.fallingblock:
@@ -75,12 +88,39 @@ class BlockManager(pygame.sprite.Group):
             else:
                 self.block.DropOne()
                 self.waitcount = 0.0
-                if self.CheckCollision():
+                # Triggers when a block lands
+                if self.CheckBlockCollision():
                     self.block.RaiseOne()
                     self.fallingblock = False
-                    for sp in self.block.sprites():
-                        self.add(sp)
-                    self.block.empty()
+                    self.droppingblocktiles = True
+        # Handles block tiles dropping into gaps
+        elif self.droppingblocktiles:
+            if self.tilewait < tiledropwait:
+                self.tilewait += time
+            else:
+                self.block.tiledict[3].DropOne()
+                while not self.CheckTileCollision(self.block.tiledict[3]):
+                    self.block.tiledict[3].DropOne()
+                self.block.tiledict[3].RaiseOne()
+                self.add(self.block.tiledict[3])
+                self.block.tiledict[0].DropOne()
+                while not self.CheckTileCollision(self.block.tiledict[0]):
+                    self.block.tiledict[0].DropOne()
+                self.block.tiledict[0].RaiseOne()
+                self.add(self.block.tiledict[0])
+                self.block.tiledict[2].DropOne()
+                while not self.CheckTileCollision(self.block.tiledict[2]):
+                    self.block.tiledict[2].DropOne()
+                self.block.tiledict[2].RaiseOne()
+                self.add(self.block.tiledict[2])
+                self.block.tiledict[1].DropOne()
+                while not self.CheckTileCollision(self.block.tiledict[1]):
+                    self.block.tiledict[1].DropOne()
+                self.block.tiledict[1].RaiseOne()
+                self.add(self.block.tiledict[1])
+                self.block.empty()
+                self.droppingblocktiles = False
+                    
         else:
             self.block = Block(self.color1,self.color2,
                                griddimensions[0]/2-tilesize[0]+self.xoffset,
@@ -108,17 +148,26 @@ class Tile(pygame.sprite.Sprite):
         self.image.blit(self.inner,(4,4))
         self.rect = self.image.get_rect()
 
-# Returns a random block
+    def DropOne(self):
+        self.rect.top += tilesize[1]
+
+    def RaiseOne(self):
+        self.rect.top -= tilesize[1]
+
+# Returns a random block, tiles arraged
+# 0 1
+# 3 2
 class Block(pygame.sprite.Group):
     def __init__(self, color1, color2, x=0, y=0):
         pygame.sprite.Group.__init__(self)
-        layout = layouts[rnd.randint(1,6)]
+        layout = layouts[rnd.randint(1,6)]        
         # x and y are the coordinates of the top left corner of block
         for i in layout:
             if i == 0:
                 self.add(Tile(color1,color2))
             else:
                 self.add(Tile(color2,color1))
+        self.tiledict = {}        
         for i in range(4):
             if i == 0:
                 self.sprites()[i].rect.left = x
@@ -132,6 +181,7 @@ class Block(pygame.sprite.Group):
             else:
                 self.sprites()[i].rect.left = x
                 self.sprites()[i].rect.top = y + tilesize[1]
+            self.tiledict[i]=self.sprites()[i]
         self.x = self.sprites()[0].rect.left
         self.y = self.sprites()[0].rect.top
 
@@ -144,6 +194,14 @@ class Block(pygame.sprite.Group):
         self.sprites()[1].rect.topleft = x0
         self.sprites()[2].rect.topleft = x1
         self.sprites()[3].rect.topleft = x2        
+        s0 = self.tiledict[0]
+        s1 = self.tiledict[1]
+        s2 = self.tiledict[2]
+        s3 = self.tiledict[3]
+        self.tiledict[0] = s3
+        self.tiledict[1] = s0
+        self.tiledict[2] = s1
+        self.tiledict[3] = s2
 
     def RotateClockwise(self):
         x0 = self.sprites()[0].rect.topleft
@@ -154,6 +212,14 @@ class Block(pygame.sprite.Group):
         self.sprites()[1].rect.topleft = x2
         self.sprites()[2].rect.topleft = x3
         self.sprites()[3].rect.topleft = x0
+        s0 = self.tiledict[0]
+        s1 = self.tiledict[1]
+        s2 = self.tiledict[2]
+        s3 = self.tiledict[3]
+        self.tiledict[0] = s1
+        self.tiledict[1] = s2
+        self.tiledict[2] = s3
+        self.tiledict[3] = s0
 
     def MoveRight(self):
         x_list = []
@@ -174,7 +240,7 @@ class Block(pygame.sprite.Group):
     def DropOne(self):
         y_list = []
         for sp in self.sprites():
-            sp.rect.top += tilesize[1]
+            sp.DropOne()
             y_list.append(sp.rect.top)
         if y_list:
             self.y = min(y_list)
@@ -182,7 +248,7 @@ class Block(pygame.sprite.Group):
     def RaiseOne(self):
         y_list = []
         for sp in self.sprites():
-            sp.rect.top -= tilesize[1]
+            sp.RaiseOne()
             y_list.append(sp.rect.top)
         if y_list:
             self.y = min(y_list)
