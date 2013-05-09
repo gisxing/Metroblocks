@@ -32,11 +32,16 @@ class BlockManager(pygame.sprite.Group):
         self.dropspeed = dropspeed
         self.grid = Gridlines(self.xoffset,self.yoffset)
 
-    def HandleInput(self, KeyASCII):
-        if KeyASCII == K_x:
+    def HandleInput(self, key):
+        if key == K_x:
             self.block.RotateClockwise()
-        elif KeyASCII == K_z:
+        elif key == K_z:
             self.block.RotateCounterclockwise()
+        elif key == K_RIGHT:
+            if self.block.x + tilesize[0]*2 < griddimensions[0]+self.xoffset:
+                self.block.MoveRight()
+        elif key == K_LEFT and self.block.x > self.xoffset:
+            self.block.MoveLeft()
 
     def update(self, time):        
         self.wiper.update(time)
@@ -85,8 +90,6 @@ class Block(pygame.sprite.Group):
         pygame.sprite.Group.__init__(self)
         layout = layouts[rnd.randint(1,6)]
         # x and y are the coordinates of the top left corner of block
-        self.x = x
-        self.y = y
         for i in layout:
             if i == 0:
                 self.add(Tile(color1,color2))
@@ -105,6 +108,8 @@ class Block(pygame.sprite.Group):
             else:
                 self.sprites()[i].rect.left = x
                 self.sprites()[i].rect.top = y + tilesize[1]
+        self.x = self.sprites()[0].rect.left
+        self.y = self.sprites()[0].rect.top
 
     def RotateCounterclockwise(self):
         x0 = self.sprites()[0].rect.topleft
@@ -126,6 +131,19 @@ class Block(pygame.sprite.Group):
         self.sprites()[2].rect.topleft = x3
         self.sprites()[3].rect.topleft = x0
 
+    def MoveRight(self):
+        for sp in self.sprites():
+            sp.rect.left += tilesize[0]
+        self.x = self.sprites()[0].rect.left
+        self.y = self.sprites()[0].rect.top
+
+    def MoveLeft(self):
+        for sp in self.sprites():
+            sp.rect.left -= tilesize[0]
+        self.x = self.sprites()[0].rect.left
+        self.y = self.sprites()[0].rect.top
+        
+
 class Line(pygame.sprite.Sprite):
     def __init__(self, size, pos):
         pygame.sprite.Sprite.__init__(self)
@@ -139,9 +157,9 @@ class Gridlines(pygame.sprite.Group):
     def __init__(self, xoffset=0, yoffset=0):
         pygame.sprite.Group.__init__(self)
         for i in range(0,11):
-            self.add(Line((720,2),(xoffset,45*i-1+yoffset)))
+            self.add(Line((griddimensions[0]+2,2),(xoffset-1,45*i-1+yoffset)))
         for i in range(0,17):
-            self.add(Line((2,450),(45*i-1+xoffset,yoffset)))
+            self.add(Line((2,griddimensions[1]+1),(45*i-1+xoffset,yoffset)))
 
 # The line that wipes out blocks
 class Wiper(pygame.sprite.GroupSingle):
