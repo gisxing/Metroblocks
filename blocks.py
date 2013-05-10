@@ -15,6 +15,7 @@ innersize = (liningsize[0]-4,liningsize[1]-4)
 flagliningsize = (tilesize[0]-2,tilesize[1]-2)
 flaginnersize = (flagliningsize[0]-2,flagliningsize[1]-2)
 griddimensions = (720,450)
+gridsize = (16,12)
 tiledropwait = 0.05
 
 class BlockManager(pygame.sprite.Group):
@@ -27,13 +28,17 @@ class BlockManager(pygame.sprite.Group):
         self.tilewait = 0.0
         self.fallingblock = False
         self.droppingblocktiles = False
-        # y = 0,1 are above the gridlines, blocks wait here
-        self.grid = [[0 for y in range(12)] for x in range(16)]
+        # Grid is initialized with the tuple of topleft corner of each cell
+        # Points to tiles at locations
+        self.grid = {}
+        for i in range(16):
+            for j in range(12):
+                self.grid[(i,j)] = (xoffset+tilesize[0]*i,yoffset+tilesize[1]*(j-2))
         self.xoffset = xoffset
         self.yoffset = yoffset
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
         self.fallwait = fallwait
-        self.grid = Gridlines(self.xoffset,self.yoffset)
+        self.gridlines = Gridlines(self.xoffset,self.yoffset)
 
     def KeydownHandler(self, key):
         if key == K_x:
@@ -58,7 +63,7 @@ class BlockManager(pygame.sprite.Group):
 
     def CheckBlockCollision(self):
         if pygame.sprite.groupcollide(self.block,self,False,False):
-            print('collide self')
+            print('collide block')
             return True
         elif self.block.x < self.xoffset:
             print('collide left side')
@@ -74,17 +79,45 @@ class BlockManager(pygame.sprite.Group):
 
     def CheckTileCollision(self,tile):
         if pygame.sprite.spritecollide(tile,self,False):
-            print('collide self')
             return True
         elif tile.rect.bottom > griddimensions[1]+self.yoffset:
-            print('collide bottom')
             return True
         else:
             return False
-
+        
     # If 2x2 is found, tiles in 2x2 are flagged
     def Check2x2(self,tile):
-        pass
+        loc = tile.grid
+        locbelow = (loc[0],loc[1]+1)
+        locleft = (loc[0]-1,loc[1])
+        locright = (loc[0]+1,loc[1])
+        locbelowleft = (loc[0]-1,loc[1]+1)
+        locbelowright = (loc[0]+1,loc[1]+1)
+        if loc[1] < gridsize[1]-1:
+            if not isinstance(self.grid[locbelow],tuple) and \
+               self.grid[locbelow].color1 == tile.color1:
+                # Check tiles to the left
+                if not (isinstance(self.grid[locleft],tuple) or \
+                        isinstance(self.grid[locbelowleft],tuple)) and \
+                        self.grid[locleft].color1 == tile.color1 and \
+                        self.grid[locbelowleft].color1 == tile.color1:
+                    tile.Flag(1)
+                    self.grid[locleft].Flag(0)
+                    self.grid[locbelow].Flag(2)
+                    self.grid[locbelowleft].Flag(3)
+                    print('2x2: {0} {1} {2} {3}'.format(locleft,tile.grid,\
+                                                        locbelow,locbelowleft))
+                # Check tiles to the right
+                if not (isinstance(self.grid[locright],tuple) or \
+                        isinstance(self.grid[locbelowright],tuple)) and \
+                        self.grid[locright].color1 == tile.color1 and \
+                        self.grid[locbelowright].color1 == tile.color1:
+                    tile.Flag(0)
+                    self.grid[locright].Flag(1)
+                    self.grid[locbelow].Flag(3)
+                    self.grid[locbelowright].Flag(2)
+                    print('2x2: {0} {1} {2} {3}'.format(tile.grid,locright,\
+                                                        locbelowright,locbelow))
 
     def update(self, time):        
         self.wiper.update(time)
@@ -92,57 +125,71 @@ class BlockManager(pygame.sprite.Group):
             if self.waitcount < self.fallwait:
                 self.waitcount += time
             else:
-                self.block.DropOne()
+                self.block.MoveDown()
                 self.waitcount = 0.0
                 # Triggers when a block lands
                 if self.CheckBlockCollision():
-                    self.block.RaiseOne()
+                    self.block.MoveUp()
                     self.fallingblock = False
                     self.droppingblocktiles = True
-        # Handles block tiles dropping into gaps
+        # Animates block tiles dropping into gaps
         elif self.droppingblocktiles:
             if self.tilewait < tiledropwait:
                 self.tilewait += time
             else:
-                self.block.tiledict[3].DropOne()
-                while not self.CheckTileCollision(self.block.tiledict[3]):
-                    self.block.tiledict[3].DropOne()
-                self.block.tiledict[3].RaiseOne()
+                # Saves landing point of each tile in grid
+                loc = gridsize[1]-1
+                for j in range(self.block.tiledict[3].grid[1],gridsize[1]):
+                    if not isinstance(self.grid[(self.block.tiledict[3].\
+                                                 grid[0],j)],tuple):
+                        loc = j-1
+                        break
+                self.swap((self.block.tiledict[3].grid[0],loc),\
+                          self.block.tiledict[3])
                 self.add(self.block.tiledict[3])
-                
-                self.block.tiledict[0].DropOne()
-                while not self.CheckTileCollision(self.block.tiledict[0]):
-                    self.block.tiledict[0].DropOne()
-                self.block.tiledict[0].RaiseOne()
+                self.Check2x2(self.block.tiledict[3])
+                self.swap((self.block.tiledict[3].grid[0],loc-1),\
+                          self.block.tiledict[0])
                 self.add(self.block.tiledict[0])
-                
-                self.block.tiledict[2].DropOne()
-                while not self.CheckTileCollision(self.block.tiledict[2]):
-                    self.block.tiledict[2].DropOne()
-                self.block.tiledict[2].RaiseOne()
+                self.Check2x2(self.block.tiledict[0])
+                loc = gridsize[1]-1
+                for j in range(self.block.tiledict[2].grid[1],gridsize[1]):
+                    if not isinstance(self.grid[(self.block.tiledict[2].\
+                                                 grid[0],j)],tuple):
+                        loc = j-1
+                        break
+                self.swap((self.block.tiledict[2].grid[0],loc),\
+                          self.block.tiledict[2])
                 self.add(self.block.tiledict[2])
-                
-                self.block.tiledict[1].DropOne()
-                while not self.CheckTileCollision(self.block.tiledict[1]):
-                    self.block.tiledict[1].DropOne()
-                self.block.tiledict[1].RaiseOne()
+                self.Check2x2(self.block.tiledict[2])
+                self.swap((self.block.tiledict[2].grid[0],loc-1),\
+                          self.block.tiledict[1])
                 self.add(self.block.tiledict[1])
-                
+                self.Check2x2(self.block.tiledict[1])
                 self.block.empty()
-                self.droppingblocktiles = False
-                    
+                self.tilewait = 0.0
+                if not self.block.sprites():
+                    self.droppingblocktiles = False
+        # Gets new block            
         else:
             self.block = Block(self.color1,self.color2,
                                griddimensions[0]/2-tilesize[0]+self.xoffset,
-                               self.yoffset-tilesize[1]*2)
+                               self.yoffset-tilesize[1]*2, (7,0))
             self.fallingblock = True
         pygame.sprite.Group.update(self)
 
     def draw(self, Surface):
-        self.grid.draw(Surface)
+        self.gridlines.draw(Surface)
         pygame.sprite.Group.draw(self,Surface)
         self.block.draw(Surface)
         self.wiper.draw(Surface)
+
+    # Places tile into grid at gridloc, old location goes back to initial value
+    def swap(self, gridloc, tile):
+        self.grid[tile.grid] = tile.rect.topleft
+        tile.rect.topleft = self.grid[gridloc]
+        tile.grid = gridloc
+        self.grid[gridloc] = tile
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
@@ -158,24 +205,35 @@ class Tile(pygame.sprite.Sprite):
         self.image.blit(lining,(2,2))
         self.image.blit(inner,(4,4))
         self.rect = self.image.get_rect()
+        self.grid = (0,0)
 
-    def DropOne(self):
+    def MoveLeft(self):
+        self.rect.left -= tilesize[0]
+        self.grid = (self.grid[0]-1,self.grid[1])
+
+    def MoveRight(self):
+        self.rect.left += tilesize[0]
+        self.grid = (self.grid[0]+1,self.grid[1])
+        
+    def MoveDown(self):
         self.rect.top += tilesize[1]
+        self.grid = (self.grid[0],self.grid[1]+1)
 
-    def RaiseOne(self):
+    def MoveUp(self):
         self.rect.top -= tilesize[1]
+        self.grid = (self.grid[0],self.grid[1]-1)
 
     # Flags tiles according to position in 2x2
-    # 0: Topright
-    # 1: Topleft
-    # 2: Bottomleft
-    # 3: Bottomright
-    def FlagTile(self,pos):
+    # 0: Top left
+    # 1: Top right
+    # 2: Bottom right
+    # 3: Bottom left
+    def Flag(self,pos):
         self.image.fill(self.color1)
         lining = pygame.Surface(flagliningsize)
         inner = pygame.Surface(flaginnersize)
-        lining.fill(color2)
-        inner.fill(color1)
+        lining.fill(self.color2)
+        inner.fill(self.color1)
         if pos == 0:
             self.image.blit(lining,(2,2))
             self.image.blit(inner,(4,4))
@@ -183,17 +241,17 @@ class Tile(pygame.sprite.Sprite):
             self.image.blit(lining,(0,2))
             self.image.blit(inner,(0,4))
         elif pos == 2:
-            self.image.blit(lining,(2,0))
-            self.image.blit(inner,(4,0))
-        else:
             self.image.blit(lining,(0,0))
             self.image.blit(inner,(0,0))
+        else:
+            self.image.blit(lining,(2,0))
+            self.image.blit(inner,(4,0))            
 
 # Returns a random block, tiles arraged
 # 0 1
 # 3 2
 class Block(pygame.sprite.Group):
-    def __init__(self, color1, color2, x=0, y=0):
+    def __init__(self, color1, color2, x=0, y=0, grid=(0,0)):
         pygame.sprite.Group.__init__(self)
         layout = layouts[rnd.randint(1,6)]        
         # x and y are the coordinates of the top left corner of block
@@ -207,28 +265,28 @@ class Block(pygame.sprite.Group):
             if i == 0:
                 self.sprites()[i].rect.left = x
                 self.sprites()[i].rect.top = y
+                self.sprites()[i].grid = grid
             elif i == 1:
                 self.sprites()[i].rect.left = x + tilesize[0]
                 self.sprites()[i].rect.top = y
+                self.sprites()[i].grid = (grid[0]+1,grid[1])
             elif i == 2:
                 self.sprites()[i].rect.left = x + tilesize[0]
                 self.sprites()[i].rect.top = y + tilesize[1]
+                self.sprites()[i].grid = (grid[0]+1,grid[1]+1)
             else:
                 self.sprites()[i].rect.left = x
                 self.sprites()[i].rect.top = y + tilesize[1]
+                self.sprites()[i].grid = (grid[0],grid[1])
             self.tiledict[i]=self.sprites()[i]
         self.x = self.sprites()[0].rect.left
         self.y = self.sprites()[0].rect.top
 
     def RotateCounterclockwise(self):
-        x0 = self.sprites()[0].rect.topleft
-        x1 = self.sprites()[1].rect.topleft
-        x2 = self.sprites()[2].rect.topleft
-        x3 = self.sprites()[3].rect.topleft
-        self.sprites()[0].rect.topleft = x3
-        self.sprites()[1].rect.topleft = x0
-        self.sprites()[2].rect.topleft = x1
-        self.sprites()[3].rect.topleft = x2        
+        self.tiledict[0].MoveDown()
+        self.tiledict[1].MoveLeft()
+        self.tiledict[2].MoveUp()
+        self.tiledict[3].MoveRight()
         s0 = self.tiledict[0]
         s1 = self.tiledict[1]
         s2 = self.tiledict[2]
@@ -239,14 +297,10 @@ class Block(pygame.sprite.Group):
         self.tiledict[3] = s0
 
     def RotateClockwise(self):
-        x0 = self.sprites()[0].rect.topleft
-        x1 = self.sprites()[1].rect.topleft
-        x2 = self.sprites()[2].rect.topleft
-        x3 = self.sprites()[3].rect.topleft
-        self.sprites()[0].rect.topleft = x1
-        self.sprites()[1].rect.topleft = x2
-        self.sprites()[2].rect.topleft = x3
-        self.sprites()[3].rect.topleft = x0
+        self.tiledict[0].MoveRight()
+        self.tiledict[1].MoveDown()
+        self.tiledict[2].MoveLeft()
+        self.tiledict[3].MoveUp()
         s0 = self.tiledict[0]
         s1 = self.tiledict[1]
         s2 = self.tiledict[2]
@@ -259,7 +313,7 @@ class Block(pygame.sprite.Group):
     def MoveRight(self):
         x_list = []
         for sp in self.sprites():
-            sp.rect.left += tilesize[0]
+            sp.MoveRight()
             x_list.append(sp.rect.left)
         if x_list:
             self.x = min(x_list)
@@ -267,23 +321,23 @@ class Block(pygame.sprite.Group):
     def MoveLeft(self):
         x_list = []
         for sp in self.sprites():
-            sp.rect.left -= tilesize[0]
+            sp.MoveLeft()
             x_list.append(sp.rect.left)
         if x_list:
             self.x = min(x_list)
 
-    def DropOne(self):
+    def MoveDown(self):
         y_list = []
         for sp in self.sprites():
-            sp.DropOne()
+            sp.MoveDown()
             y_list.append(sp.rect.top)
         if y_list:
             self.y = min(y_list)
 
-    def RaiseOne(self):
+    def MoveUp(self):
         y_list = []
         for sp in self.sprites():
-            sp.RaiseOne()
+            sp.MoveUp()
             y_list.append(sp.rect.top)
         if y_list:
             self.y = min(y_list)
