@@ -197,6 +197,21 @@ class BlockManager(pygame.sprite.Group):
         tile.grid = gridloc
         self.grid[gridloc] = tile
 
+class TileDestroyer(pygame.sprite.Group):
+    def __init__(self):
+        pygame.sprite.Group.__init__(self)
+        self.maxX = 0
+
+    def add(self, sprite):
+        pygame.sprite.Group.add(self,sprite)
+        if sprite.rect.right > self.maxX:
+            self.maxX = sprite.rect.right
+
+    def update(self, wiperloc):
+        if wiperloc > self.maxX:
+            for sp in self.sprites():
+                sp.kill()
+
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
         pygame.sprite.Sprite.__init__(self)
