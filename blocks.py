@@ -39,6 +39,7 @@ class BlockManager(pygame.sprite.Group):
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
         self.fallwait = fallwait
         self.gridlines = Gridlines(self.xoffset,self.yoffset)
+        self.tilewiper = pygame.Surface(tilesize)
 
     def KeydownHandler(self, key):
         if key == K_x:
@@ -97,7 +98,8 @@ class BlockManager(pygame.sprite.Group):
             if not isinstance(self.grid[locbelow],tuple) and \
                self.grid[locbelow].color1 == tile.color1:
                 # Check tiles to the left
-                if not (isinstance(self.grid[locleft],tuple) or \
+                if loc[0] > 0 and \
+                   not (isinstance(self.grid[locleft],tuple) or \
                         isinstance(self.grid[locbelowleft],tuple)) and \
                         self.grid[locleft].color1 == tile.color1 and \
                         self.grid[locbelowleft].color1 == tile.color1:
@@ -108,7 +110,8 @@ class BlockManager(pygame.sprite.Group):
                     print('2x2: {0} {1} {2} {3}'.format(locleft,tile.grid,\
                                                         locbelow,locbelowleft))
                 # Check tiles to the right
-                if not (isinstance(self.grid[locright],tuple) or \
+                if loc[0] < gridsize[0]-1 and \
+                   not (isinstance(self.grid[locright],tuple) or \
                         isinstance(self.grid[locbelowright],tuple)) and \
                         self.grid[locright].color1 == tile.color1 and \
                         self.grid[locbelowright].color1 == tile.color1:
@@ -120,7 +123,6 @@ class BlockManager(pygame.sprite.Group):
                                                         locbelowright,locbelow))
 
     def update(self, time):        
-        self.wiper.update(time)
         if self.fallingblock:
             if self.waitcount < self.fallwait:
                 self.waitcount += time
@@ -168,15 +170,19 @@ class BlockManager(pygame.sprite.Group):
                 self.Check2x2(self.block.tiledict[1])
                 self.block.empty()
                 self.tilewait = 0.0
-                if not self.block.sprites():
-                    self.droppingblocktiles = False
+                self.droppingblocktiles = False
         # Gets new block            
         else:
             self.block = Block(self.color1,self.color2,
                                griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2, (7,0))
             self.fallingblock = True
-        pygame.sprite.Group.update(self)
+        self.wiper.update(time)
+        for sp in pygame.sprite.spritecollide(self.wiper.sprite,self,False):
+            if sp.flagged:
+                self.tilewiper.fill(sp.color1)
+                sp.image.blit(self.tilewiper, \
+                    (self.wiper.sprite.rect.left-sp.rect.left-tilesize[0]+2,0))
 
     def draw(self, Surface):
         self.gridlines.draw(Surface)
@@ -206,6 +212,7 @@ class Tile(pygame.sprite.Sprite):
         self.image.blit(inner,(4,4))
         self.rect = self.image.get_rect()
         self.grid = (0,0)
+        self.flagged = False
 
     def MoveLeft(self):
         self.rect.left -= tilesize[0]
@@ -229,6 +236,7 @@ class Tile(pygame.sprite.Sprite):
     # 2: Bottom right
     # 3: Bottom left
     def Flag(self,pos):
+        self.flagged = True
         self.image.fill(self.color1)
         lining = pygame.Surface(flagliningsize)
         inner = pygame.Surface(flaginnersize)
