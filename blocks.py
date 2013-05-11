@@ -27,7 +27,7 @@ class BlockManager(pygame.sprite.Group):
         self.waitcount = 0.0
         self.tilewait = 0.0
         self.fallingblock = False
-        self.droppingtiles = False
+        self.droppingtiles = {}
         # Grid is initialized with the tuple of topleft corner of each cell
         # Points to tiles at locations
         self.grid = {}
@@ -108,8 +108,6 @@ class BlockManager(pygame.sprite.Group):
                                 self.grid[locbelowleft]]
                     
                     self.dmanager.add(templist)
-                    print('2x2: {0} {1} {2} {3}'.format(locleft,tile.grid,\
-                                                        locbelow,locbelowleft))
                 # Check tiles to the right
                 if loc[0] < gridsize[0]-1 and \
                    not (isinstance(self.grid[locright],tuple) or \
@@ -123,8 +121,6 @@ class BlockManager(pygame.sprite.Group):
                     templist = [tile,self.grid[locright],self.grid[locbelow],\
                                 self.grid[locbelowright]]
                     self.dmanager.add(templist)
-                    print('2x2: {0} {1} {2} {3}'.format(tile.grid,locright,\
-                                                        locbelowright,locbelow))
 
     def update(self, time):        
         if self.fallingblock:
@@ -137,50 +133,43 @@ class BlockManager(pygame.sprite.Group):
                 if self.CheckBlockCollision():
                     self.block.MoveUp()
                     self.fallingblock = False
-                    self.droppingtiles = True
-        # Animates block tiles dropping into gaps
-        elif self.droppingtiles:
-            if self.tilewait < tiledropwait:
-                self.tilewait += time
-            else:
-                # Saves landing point of each tile in grid
-                loc = gridsize[1]-1
-                for j in range(self.block.tiledict[3].grid[1],gridsize[1]):
-                    if not isinstance(self.grid[(self.block.tiledict[3].\
-                                                 grid[0],j)],tuple):
-                        loc = j-1
-                        break
-                self.swap((self.block.tiledict[3].grid[0],loc),\
-                          self.block.tiledict[3])
-                self.add(self.block.tiledict[3])
-                self.Check2x2(self.block.tiledict[3])
-                self.swap((self.block.tiledict[3].grid[0],loc-1),\
-                          self.block.tiledict[0])
-                self.add(self.block.tiledict[0])
-                self.Check2x2(self.block.tiledict[0])
-                loc = gridsize[1]-1
-                for j in range(self.block.tiledict[2].grid[1],gridsize[1]):
-                    if not isinstance(self.grid[(self.block.tiledict[2].\
-                                                 grid[0],j)],tuple):
-                        loc = j-1
-                        break
-                self.swap((self.block.tiledict[2].grid[0],loc),\
-                          self.block.tiledict[2])
-                self.add(self.block.tiledict[2])
-                self.Check2x2(self.block.tiledict[2])
-                self.swap((self.block.tiledict[2].grid[0],loc-1),\
-                          self.block.tiledict[1])
-                self.add(self.block.tiledict[1])
-                self.Check2x2(self.block.tiledict[1])
-                self.block.empty()
-                self.tilewait = 0.0
-                self.droppingtiles = False
-        # Gets new block            
+                    for sp in self.block.sprites():
+                        self.grid[sp.grid] = sp
+                        self.add(sp)
+                        if not sp.grid[0] in self.droppingtiles:
+                            self.droppingtiles[sp.grid[0]] = []
+                        self.droppingtiles[sp.grid[0]].append(sp.grid[1])
+                    self.block.empty()
         else:
             self.block = Block(self.color1,self.color2,
                                griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2, (7,0))
             self.fallingblock = True
+                        
+        # Animates tiles dropping into gaps
+        if self.droppingtiles:
+            if self.tilewait < tiledropwait:
+                self.tilewait += time
+            else:
+                droplist = []
+                for x in self.droppingtiles:
+                    self.droppingtiles[x].sort()
+                    self.droppingtiles[x].reverse()
+                    for y in self.droppingtiles[x]:
+                        loc = gridsize[1]-1
+                        temp = self.grid[(x,y)]
+                        for j in range(temp.grid[1]+1,gridsize[1]):
+                            if not isinstance(self.grid[(temp.grid[0],j)],tuple):
+                                loc = j-1
+                                break
+                        if loc != temp.grid:
+                            self.swap((temp.grid[0],loc),temp)
+                        droplist.append(temp)
+                for sp in droplist:
+                    self.Check2x2(sp)
+                self.droppingtiles.clear()
+                self.tilewait = 0.0           
+        
         self.wiper.update(time)
         temp=self.dmanager.update(self.wiper.sprite)
         # Dictionary indexes x value of clearned blocks, returns top y at x
@@ -188,11 +177,16 @@ class BlockManager(pygame.sprite.Group):
         if temp:
             for tup in temp:
                 self.grid[tup[0]] = tup[1]
-                if tup[0] in topdict:
-                    if tup[1] < topdict[tup[0]]:
-                        topdict[tup[0]] = tup[1]
+                if not tup[0][0] in topdict or tup[0][1] < topdict[tup[0][0]]:
+                    topdict[tup[0][0]] = tup[0][1]
         # For each x, adds tiles above top y to drop list
-        
+        for x in topdict:
+            for y in range(0,topdict[x]):
+                if not isinstance(self.grid[(x,y)],tuple):
+                    if not self.grid[(x,y)].grid[0] in self.droppingtiles:
+                        self.droppingtiles[self.grid[(x,y)].grid[0]] = []
+                    self.droppingtiles[self.grid[(x,y)].grid[0]].append(\
+                        self.grid[(x,y)].grid[1])
                 
         for sp in pygame.sprite.spritecollide(self.wiper.sprite,self,False):
             if sp.flagged:
@@ -357,7 +351,7 @@ class Block(pygame.sprite.Group):
             else:
                 self.sprites()[i].rect.left = x
                 self.sprites()[i].rect.top = y + tilesize[1]
-                self.sprites()[i].grid = (grid[0],grid[1])
+                self.sprites()[i].grid = (grid[0],grid[1]+1)
             self.tiledict[i]=self.sprites()[i]
         self.x = self.sprites()[0].rect.left
         self.y = self.sprites()[0].rect.top
