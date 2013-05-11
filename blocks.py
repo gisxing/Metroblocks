@@ -40,6 +40,7 @@ class BlockManager(pygame.sprite.Group):
         self.fallwait = fallwait
         self.gridlines = Gridlines(self.xoffset,self.yoffset)
         self.tilewiper = pygame.Surface(tilesize)
+        self.dmanager = DestructionManager()
 
     def KeydownHandler(self, key):
         if key == K_x:
@@ -64,16 +65,12 @@ class BlockManager(pygame.sprite.Group):
 
     def CheckBlockCollision(self):
         if pygame.sprite.groupcollide(self.block,self,False,False):
-            print('collide block')
             return True
         elif self.block.x < self.xoffset:
-            print('collide left side')
             return True
         elif self.block.x > self.xoffset+griddimensions[0]-2*tilesize[0]:
-            print('collide right side')
             return True
         elif self.block.y > self.yoffset+griddimensions[1]-2*tilesize[1]:
-            print('collide bottom')
             return True
         else:
             return False
@@ -107,6 +104,10 @@ class BlockManager(pygame.sprite.Group):
                     self.grid[locleft].Flag(0)
                     self.grid[locbelow].Flag(2)
                     self.grid[locbelowleft].Flag(3)
+                    templist = [tile, self.grid[locleft], self.grid[locbelow],\
+                                self.grid[locbelowleft]]
+                    
+                    self.dmanager.add(templist)
                     print('2x2: {0} {1} {2} {3}'.format(locleft,tile.grid,\
                                                         locbelow,locbelowleft))
                 # Check tiles to the right
@@ -119,6 +120,9 @@ class BlockManager(pygame.sprite.Group):
                     self.grid[locright].Flag(1)
                     self.grid[locbelow].Flag(3)
                     self.grid[locbelowright].Flag(2)
+                    templist = [tile,self.grid[locright],self.grid[locbelow],\
+                                self.grid[locbelowright]]
+                    self.dmanager.add(templist)
                     print('2x2: {0} {1} {2} {3}'.format(tile.grid,locright,\
                                                         locbelowright,locbelow))
 
@@ -178,11 +182,16 @@ class BlockManager(pygame.sprite.Group):
                                self.yoffset-tilesize[1]*2, (7,0))
             self.fallingblock = True
         self.wiper.update(time)
+        temp=self.dmanager.update(self.wiper.sprite)
+        if temp:
+            for tup in temp:
+                self.grid[tup[0]] = tup[1]
+                
         for sp in pygame.sprite.spritecollide(self.wiper.sprite,self,False):
             if sp.flagged:
                 self.tilewiper.fill(sp.color1)
                 sp.image.blit(self.tilewiper, \
-                    (self.wiper.sprite.rect.left-sp.rect.left-tilesize[0]+2,0))
+                    (self.wiper.sprite.rect.left-sp.rect.left-tilesize[0]+3,0))
 
     def draw(self, Surface):
         self.gridlines.draw(Surface)
@@ -197,20 +206,61 @@ class BlockManager(pygame.sprite.Group):
         tile.grid = gridloc
         self.grid[gridloc] = tile
 
+class DestructionManager():
+    def __init__(self):
+        self.destroyers = []
+
+    def add(self, sprites):
+        added = False
+        if len(self.destroyers) > 1:
+            for dst in self.destroyers:
+                for sp in sprites:
+                    if sp in dst:
+                        dst.addtiles(sprites)
+                        return
+        if not self.destroyers:
+            self.destroyers.append(TileDestroyer())
+        self.destroyers[-1].addtiles(sprites)
+
+    def update(self, wiper):
+        listallkilled = []
+        for dst in self.destroyers:
+            temp=dst.update(wiper)
+            if temp:
+                listallkilled.extend(temp)
+            if not dst.sprites():
+                self.destroyers.remove(dst)
+        return listallkilled
+
+    def clear(self):
+        self.destroyers[:] = []
+                
 class TileDestroyer(pygame.sprite.Group):
     def __init__(self):
         pygame.sprite.Group.__init__(self)
         self.maxX = 0
+        self.killready = False
+        self.kill = False
 
-    def add(self, sprite):
-        pygame.sprite.Group.add(self,sprite)
-        if sprite.rect.right > self.maxX:
-            self.maxX = sprite.rect.right
+    def addtiles(self, sprites):
+        for sprite in sprites:
+            self.add(sprite)
+            if sprite.rect.right > self.maxX:
+                self.maxX = sprite.rect.right
 
-    def update(self, wiperloc):
-        if wiperloc > self.maxX:
-            for sp in self.sprites():
-                sp.kill()
+    def update(self, wiper):
+        if pygame.sprite.spritecollideany(wiper,self):
+            if self.killready:
+                self.kill = True
+        else:
+            if self.kill:
+                listkilled = []
+                for sp in self.sprites():
+                    listkilled.append((sp.grid,sp.rect.topleft))
+                    sp.kill()
+                return listkilled
+            else:
+                self.killready = True
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
