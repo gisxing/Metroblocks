@@ -171,14 +171,7 @@ class BlockManager(pygame.sprite.Group):
                 self.tilewait = 0.0           
         
         self.wiper.update(time)
-        temp=self.dmanager.update(self.wiper.sprite)
-        # Dictionary indexes x value of clearned blocks, returns top y at x
-        topdict={}
-        if temp:
-            for tup in temp:
-                self.grid[tup[0]] = tup[1]
-                if not tup[0][0] in topdict or tup[0][1] < topdict[tup[0][0]]:
-                    topdict[tup[0][0]] = tup[0][1]
+        topdict=self.dmanager.update(self.wiper.sprite, self.grid)
         # For each x, adds tiles above top y to drop list
         for x in topdict:
             for y in range(0,topdict[x]):
@@ -223,15 +216,17 @@ class DestructionManager():
             self.destroyers.append(TileDestroyer())
         self.destroyers[-1].addtiles(sprites)
 
-    def update(self, wiper):
-        listallkilled = []
+    def update(self, wiper, grid):
+        lowestYs = {}
         for dst in self.destroyers:
-            temp=dst.update(wiper)
+            temp=dst.update(wiper, grid)
             if temp:
-                listallkilled.extend(temp)
+                for x in temp:
+                    if not x in lowestYs or temp[x] > lowestYs[x]:
+                        lowestYs[x] = temp[x]
             if not dst.sprites():
                 self.destroyers.remove(dst)
-        return listallkilled
+        return lowestYs
 
     def clear(self):
         self.destroyers[:] = []
@@ -249,17 +244,22 @@ class TileDestroyer(pygame.sprite.Group):
             if sprite.rect.right > self.maxX:
                 self.maxX = sprite.rect.right
 
-    def update(self, wiper):
+    # If blocks are killed, returns a dict holding the lowest y for each x
+    def update(self, wiper, grid):
         if pygame.sprite.spritecollideany(wiper,self):
             if self.killready:
                 self.kill = True
         else:
             if self.kill:
-                listkilled = []
+                lowestYs = {}
                 for sp in self.sprites():
-                    listkilled.append((sp.grid,sp.rect.topleft))
+                    if not sp.grid[0] in lowestYs:
+                        lowestYs[sp.grid[0]] = sp.grid[1]
+                    elif sp.grid[1] < lowestYs[sp.grid[0]]:
+                        lowestYs[sp.grid[0]] = sp.grid[1]
+                    grid[(sp.grid)] = sp.rect.topleft
                     sp.kill()
-                return listkilled
+                return lowestYs
             else:
                 self.killready = True
 
