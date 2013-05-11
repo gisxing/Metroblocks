@@ -27,7 +27,7 @@ class BlockManager(pygame.sprite.Group):
         self.waitcount = 0.0
         self.tilewait = 0.0
         self.fallingblock = False
-        self.droppingblocktiles = False
+        self.droppingtiles = False
         # Grid is initialized with the tuple of topleft corner of each cell
         # Points to tiles at locations
         self.grid = {}
@@ -137,9 +137,9 @@ class BlockManager(pygame.sprite.Group):
                 if self.CheckBlockCollision():
                     self.block.MoveUp()
                     self.fallingblock = False
-                    self.droppingblocktiles = True
+                    self.droppingtiles = True
         # Animates block tiles dropping into gaps
-        elif self.droppingblocktiles:
+        elif self.droppingtiles:
             if self.tilewait < tiledropwait:
                 self.tilewait += time
             else:
@@ -174,7 +174,7 @@ class BlockManager(pygame.sprite.Group):
                 self.Check2x2(self.block.tiledict[1])
                 self.block.empty()
                 self.tilewait = 0.0
-                self.droppingblocktiles = False
+                self.droppingtiles = False
         # Gets new block            
         else:
             self.block = Block(self.color1,self.color2,
@@ -183,9 +183,16 @@ class BlockManager(pygame.sprite.Group):
             self.fallingblock = True
         self.wiper.update(time)
         temp=self.dmanager.update(self.wiper.sprite)
+        # Dictionary indexes x value of clearned blocks, returns top y at x
+        topdict={}
         if temp:
             for tup in temp:
                 self.grid[tup[0]] = tup[1]
+                if tup[0] in topdict:
+                    if tup[1] < topdict[tup[0]]:
+                        topdict[tup[0]] = tup[1]
+        # For each x, adds tiles above top y to drop list
+        
                 
         for sp in pygame.sprite.spritecollide(self.wiper.sprite,self,False):
             if sp.flagged:
