@@ -213,8 +213,7 @@ class DestructionManager():
                     if sp in dst:
                         dst.addtiles(sprites)
                         return
-        if not self.destroyers:
-            self.destroyers.append(TileDestroyer())
+        self.destroyers.append(TileDestroyer())
         self.destroyers[-1].addtiles(sprites)
 
     def update(self, wiper, grid):
@@ -278,7 +277,7 @@ class LayoutQueue():
 
     # Fills queue with predetermined layouts for testing purposes
     def FillQueueTest(self):
-        self.blocks = [1,2,6,5]
+        self.blocks = [1,2,6,1]
 
     def GetNext(self):
         layout = self.blocks.pop(0)
