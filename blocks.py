@@ -19,12 +19,13 @@ gridsize = (16,12)
 tiledropwait = 0.05
 
 class BlockManager(pygame.sprite.Group):
-    def __init__(self, color1, color2, wiperspeed, fallwait, xoffset=0,
+    def __init__(self, color1, color2, wiperspeed, waitcount, xoffset=0,
                  yoffset=0):
         pygame.sprite.Group.__init__(self)
         self.color1 = color1
         self.color2 = color2
-        self.waitcount = 0.0
+        self.waitcount = waitcount
+        self.fallwait = 0.0
         self.tilewait = 0.0
         self.fallingblock = False
         self.droppingtiles = {}
@@ -36,11 +37,11 @@ class BlockManager(pygame.sprite.Group):
                 self.grid[(i,j)] = (xoffset+tilesize[0]*i,yoffset+tilesize[1]*(j-2))
         self.xoffset = xoffset
         self.yoffset = yoffset
-        self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)
-        self.fallwait = fallwait
+        self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)        
         self.gridlines = Gridlines(self.xoffset,self.yoffset)
         self.tilewiper = pygame.Surface(tilesize)
         self.dmanager = DestructionManager()
+        self.layoutqueue = LayoutQueue()
 
     def KeydownHandler(self, key):
         if key == K_x:
@@ -56,12 +57,12 @@ class BlockManager(pygame.sprite.Group):
             if self.CheckBlockCollision():
                 self.block.MoveRight()
         elif key == K_DOWN:
-            self.oldfallwait = self.fallwait
-            self.fallwait = 0.08
+            self.oldwaitcount = self.waitcount
+            self.waitcount = 0.08
 
     def KeyupHandler(self, key):
         if key == K_DOWN:
-            self.fallwait = self.oldfallwait
+            self.waitcount = self.oldwaitcount
 
     def CheckBlockCollision(self):
         if pygame.sprite.groupcollide(self.block,self,False,False):
@@ -124,11 +125,11 @@ class BlockManager(pygame.sprite.Group):
 
     def update(self, time):        
         if self.fallingblock:
-            if self.waitcount < self.fallwait:
-                self.waitcount += time
+            if self.fallwait < self.waitcount:
+                self.fallwait += time
             else:
                 self.block.MoveDown()
-                self.waitcount = 0.0
+                self.fallwait = 0.0
                 # Triggers when a block lands
                 if self.CheckBlockCollision():
                     self.block.MoveUp()
@@ -141,8 +142,8 @@ class BlockManager(pygame.sprite.Group):
                         self.droppingtiles[sp.grid[0]].append(sp.grid[1])
                     self.block.empty()
         else:
-            self.block = Block(self.color1,self.color2,
-                               griddimensions[0]/2-tilesize[0]+self.xoffset,
+            self.block = Block(self.color1,self.color2, self.layoutqueue.GetNext()\
+                               ,griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2, (7,0))
             self.fallingblock = True
                         
@@ -263,6 +264,27 @@ class TileDestroyer(pygame.sprite.Group):
             else:
                 self.killready = True
 
+# Queue of layouts to use in new blocks
+class LayoutQueue():
+    def __init__(self):
+        self.length = 4
+        self.FillQueueTest()
+
+    # Fills Queue
+    def FillQueue(self):
+        self.blocks = []
+        for i in range(self.length):
+            self.blocks.append(rnd.randint(1,6))
+
+    # Fills queue with predetermined layouts for testing purposes
+    def FillQueueTest(self):
+        self.blocks = [1,2,6,5]
+
+    def GetNext(self):
+        layout = self.blocks.pop(0)
+        self.blocks.append(rnd.randint(1,6))
+        return layout
+
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
         pygame.sprite.Sprite.__init__(self)
@@ -325,9 +347,12 @@ class Tile(pygame.sprite.Sprite):
 # 0 1
 # 3 2
 class Block(pygame.sprite.Group):
-    def __init__(self, color1, color2, x=0, y=0, grid=(0,0)):
+    def __init__(self, color1, color2, lay, x=0, y=0, grid=(0,0)):
         pygame.sprite.Group.__init__(self)
-        layout = layouts[rnd.randint(1,6)]        
+        if lay >= 0 and lay <= 6:
+            layout = layouts[lay]
+        else:
+            layout = layouts[rnd.randint(1,6)]        
         # x and y are the coordinates of the top left corner of block
         for i in layout:
             if i == 0:

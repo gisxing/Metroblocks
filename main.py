@@ -19,7 +19,7 @@ def main():
 
     color1 = red
     color2 = white
-    manager = blocks.BlockManager(red,white,150,1.5,
+    manager = blocks.BlockManager(red,white,125,1.5,
                                   (screendimensions[0]-griddimensions[0])/2,
                                   screendimensions[1]-griddimensions[1]-20)
     paused = False
