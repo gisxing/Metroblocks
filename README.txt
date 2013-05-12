@@ -4,6 +4,8 @@ Andrew Quintanilla
 Makoa Fautua
 Ray Liang
 
+Python 3.2.3, pygame
+
 Gameplay:
 Form 2x2s of one solid color to be cleared by the wiper.
 
