@@ -207,14 +207,20 @@ class DestructionManager():
 
     def add(self, sprites):
         added = False
-        if len(self.destroyers) > 1:
+        count = 0
+        if self.destroyers:
             for dst in self.destroyers:
                 for sp in sprites:
                     if sp in dst:
                         dst.addtiles(sprites)
+                        print('found, added to dst {0}'.format(count))
+                        added = True
                         return
-        self.destroyers.append(TileDestroyer())
-        self.destroyers[-1].addtiles(sprites)
+                count += 1
+        if not added:
+            self.destroyers.append(TileDestroyer())
+            print('added to new dst {0}'.format(len(self.destroyers)-1))
+            self.destroyers[-1].addtiles(sprites)
 
     def update(self, wiper, grid):
         lowestYs = {}
@@ -277,7 +283,7 @@ class LayoutQueue():
 
     # Fills queue with predetermined layouts for testing purposes
     def FillQueueTest(self):
-        self.blocks = [1,2,6,1]
+        self.blocks = [1,1,6,1]
 
     def GetNext(self):
         layout = self.blocks.pop(0)
