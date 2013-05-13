@@ -35,15 +35,19 @@ class Info(pygame.sprite.Group):
         self.scoreval = 0
         self.gameover.kill()
 
-    def update(self, scorechange):
-        if scorechange > 0:
-            self.scoreval += scorechange
+    def update(self, scoreval):
+        if self.scoreval != scoreval:
+            self.scoreval = scoreval
             self.score.image = self.font.render('{0}'.format(self.scoreval),True,white)
             self.score.rect = self.score.image.get_rect()
             self.score.rect.top = 130+self.scoretext.rect.height
             self.score.rect.left = self.xborder-self.score.rect.width-20
-        else:
+        elif scoreval < 0:
             self.GameOver()
 
     def GameOver(self):
+        print('gameover')
         self.add(self.gameover)
+
+    def IsGameOver(self):
+        return self.gameover in self.sprites()

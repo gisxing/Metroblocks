@@ -49,23 +49,25 @@ class BlockManager(pygame.sprite.Group):
         self.dmanager = DestructionManager()
         self.layoutqueue = LayoutQueue(self.xoffset,self.yoffset,self.color1,self.color2)
         self.score = 0
+        self.block = False
 
     def KeydownHandler(self, key):
-        if key == K_x:
-            self.block.RotateClockwise()
-        elif key == K_z:
-            self.block.RotateCounterclockwise()
-        elif key == K_RIGHT:
-            self.block.MoveRight()
-            if self.CheckBlockCollision():
-                self.block.MoveLeft()
-        elif key == K_LEFT:
-            self.block.MoveLeft()
-            if self.CheckBlockCollision():
+        if self.block:
+            if key == K_x:
+                self.block.RotateClockwise()
+            elif key == K_z:
+                self.block.RotateCounterclockwise()
+            elif key == K_RIGHT:
                 self.block.MoveRight()
-        elif key == K_DOWN:
-            self.oldwaitcount = self.waitcount
-            self.waitcount = fastfall
+                if self.CheckBlockCollision():
+                    self.block.MoveLeft()
+            elif key == K_LEFT:
+                self.block.MoveLeft()
+                if self.CheckBlockCollision():
+                    self.block.MoveRight()
+            elif key == K_DOWN:
+                self.oldwaitcount = self.waitcount
+                self.waitcount = fastfall
 
     def KeyupHandler(self, key):
         if key == K_DOWN:
@@ -147,7 +149,8 @@ class BlockManager(pygame.sprite.Group):
                     self.fallingblock = False
                     for sp in self.block.sprites():
                         if sp.grid[1] <2:
-                            return -1
+                            self.score = -1
+                            return
                         self.grid[sp.grid] = sp
                         self.add(sp)
                         self.droppingtiles = True
@@ -181,8 +184,8 @@ class BlockManager(pygame.sprite.Group):
         self.wiper.update(time)
         scorechange = self.dmanager.update(self.wiper.sprite,self.grid)
         if scorechange:
+            self.score += scorechange
             self.droppingtiles = True
-        return scorechange
 
     def swap(self, tile, loc):
         self.grid[tile.grid] = tile.rect.topleft
