@@ -1,6 +1,7 @@
 # Andrew Quintanilla
 # Lumines clone
 import os, sys, pygame, blocks, info
+from menu import Menu
 from pygame.locals import *
 
 white = (255,255,255)
@@ -15,7 +16,8 @@ def main():
     pygame.init()
     screen = pygame.display.set_mode(screendimensions)
     clock = pygame.time.Clock()
-    pygame.mouse.set_visible(False)
+    mousevisible = False
+    pygame.mouse.set_visible(mousevisible)
 
     color1 = red
     color2 = white
@@ -23,7 +25,7 @@ def main():
                                   (screendimensions[0]-griddimensions[0])/2,
                                   screendimensions[1]-griddimensions[1]-20)
     inf = info.Info(screendimensions[0],screendimensions[1])
-    paused = False
+    menu = Menu(screendimensions)
     scorechange = 0
 
     while 1:
@@ -31,22 +33,37 @@ def main():
         for event in pygame.event.get():
             if event.type == QUIT:
                 return
+            elif event.type == MOUSEBUTTONDOWN:
+                if menu.enabled:
+                    if menu.option == -2:
+                        return
+                    elif menu.option == 0:
+                        mousevisible = False
+                        pygame.mouse.set_visible(mousevisible)
+                        menu.HideMenu()
+                    elif menu.option == 1:
+                        manager.NewGame()
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
-                    paused = not paused
+                    mousevisible = not mousevisible
+                    pygame.mouse.set_visible(mousevisible)
+                    menu.ToggleMenu()
                 # Send keyboard input to manager to be handled
-                if not paused and scorechange != -1:
+                if not menu.enabled and scorechange != -1:
                     manager.KeydownHandler(event.key)
             elif event.type == KEYUP and scorechange != -1:
-                if not paused:
+                if not menu.enabled:
                     manager.KeyupHandler(event.key)
-                    
-        if not paused and scorechange != -1:
+
+        if menu.enabled:
+            choice = menu.update(pygame.mouse.get_pos())
+        elif scorechange != -1:
             scorechange = manager.update(time)
         if scorechange:
             inf.update(scorechange)
         screen.fill(charcoal)
         manager.draw(screen)
+        menu.draw(screen)
         inf.draw(screen)
         pygame.display.flip()
 

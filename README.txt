@@ -16,4 +16,4 @@ z - Rotate block counterclockwise
 Left arrow - Move block left
 Right arrow - Move block right
 Down arrow - Accelerate block down
-Esc - Pause, Resume
+Esc - Toggle Menu

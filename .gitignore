@@ -163,5 +163,8 @@ pip-log.txt
 .DS_Store
 
 # Audio files
-.mp3
-.wav
+*.mp3
+*.wav
+
+# SQLite database
+*.db

@@ -26,22 +26,28 @@ class BlockManager(pygame.sprite.Group):
         self.color2 = color2
         self.waitcount = waitcount
         self.oldwaitcount = waitcount
+        self.wiperspeed = wiperspeed
+        self.xoffset = xoffset
+        self.yoffset = yoffset      
+        self.gridlines = Gridlines(self.xoffset,self.yoffset)
+        self.NewGame()
+
+    def NewGame(self):
+        for sp in self.sprites():
+            sp.kill()
         self.fallwait = 0.0
         self.tilewait = 0.0
         self.fallingblock = False
         self.droppingtiles = False
+        self.grid = {}
         # Grid is initialized with the tuple of topleft corner of each cell
         # Points to tiles at locations
-        self.grid = {}
         for i in range(16):
             for j in range(12):
-                self.grid[(i,j)] = (xoffset+tilesize[0]*i,yoffset+tilesize[1]*(j-2))
-        self.xoffset = xoffset
-        self.yoffset = yoffset
-        self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)        
-        self.gridlines = Gridlines(self.xoffset,self.yoffset)
+                self.grid[(i,j)] = (self.xoffset+tilesize[0]*i,self.yoffset+tilesize[1]*(j-2))
+        self.wiper = Wiper(self.wiperspeed,self.xoffset,self.yoffset)
         self.dmanager = DestructionManager()
-        self.layoutqueue = LayoutQueue(xoffset,yoffset,color1,color2)
+        self.layoutqueue = LayoutQueue(self.xoffset,self.yoffset,self.color1,self.color2)
         self.score = 0
 
     def KeydownHandler(self, key):
