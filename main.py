@@ -3,6 +3,8 @@
 import os, sys, pygame, blocks, info
 from menu import Menu
 from pygame.locals import *
+from glob import glob
+from random import shuffle
 
 white = (255,255,255)
 black = (0,0,0)
@@ -27,15 +29,25 @@ def main():
     inf = info.Info(screendimensions[0],screendimensions[1])
     menu = Menu(screendimensions)
     scorechange = 0
+    songs = glob('*.ogg')
+    shuffle(songs)
+    for i in range(len(songs)):
+        if i == 0:
+            pygame.mixer.music.load(songs[i])
+        else:
+            pygame.mixer.music.queue(songs[i])
+    pygame.mixer.music.play()
 
     while 1:
         time = clock.tick(60)/1000
         for event in pygame.event.get():
             if event.type == QUIT:
+                pygame.mixer.music.stop()
                 return
             elif event.type == MOUSEBUTTONDOWN:
                 if menu.enabled:
                     if menu.option == -2:
+                        pygame.mixer.music.stop()
                         return
                     elif menu.option == 0:
                         mousevisible = False
@@ -43,6 +55,8 @@ def main():
                         menu.HideMenu()
                     elif menu.option == 1:
                         manager.NewGame()
+                        inf.reset()
+                        scorechange = 0
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     mousevisible = not mousevisible

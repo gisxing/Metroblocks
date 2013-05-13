@@ -165,6 +165,7 @@ pip-log.txt
 # Audio files
 *.mp3
 *.wav
+*.ogg
 
 # SQLite database
 *.db
