@@ -17,3 +17,5 @@ Left arrow - Move block left
 Right arrow - Move block right
 Down arrow - Accelerate block down
 Esc - Toggle Menu
+
+Any .ogg files you have in the same directory will be played in a random order.
