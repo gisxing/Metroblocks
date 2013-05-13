@@ -7,8 +7,8 @@ white = (255,255,255)
 black = (0,0,0)
 grey_lite = (128,128,128)
 yellow = (255,255,0)
-layouts = dict([(1,(0,0,0,0)), (2,(0,0,0,1)), (3,(0,0,1,1)), (4, (1,0,1,1)),
-               (5, (1,1,1,1)), (6, (0,1,0,1))])
+layouts = dict([(1,[0,0,0,0]), (2,[0,0,0,1]), (3,[0,0,1,1]), (4, [1,0,1,1]),
+               (5, [1,1,1,1]), (6, [0,1,0,1])])
 tilesize = (45,45)
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
@@ -16,6 +16,7 @@ flagliningsize = (tilesize[0]-2,tilesize[1]-2)
 flaginnersize = (flagliningsize[0]-2,flagliningsize[1]-2)
 griddimensions = (720,450)
 gridsize = (16,12)
+fastfall = 0.01
 
 class BlockManager(pygame.sprite.Group):
     def __init__(self, color1, color2, wiperspeed, waitcount, xoffset=0,
@@ -24,6 +25,7 @@ class BlockManager(pygame.sprite.Group):
         self.color1 = color1
         self.color2 = color2
         self.waitcount = waitcount
+        self.oldwaitcount = waitcount
         self.fallwait = 0.0
         self.tilewait = 0.0
         self.fallingblock = False
@@ -39,7 +41,8 @@ class BlockManager(pygame.sprite.Group):
         self.wiper = Wiper(wiperspeed,self.xoffset,self.yoffset)        
         self.gridlines = Gridlines(self.xoffset,self.yoffset)
         self.dmanager = DestructionManager()
-        self.layoutqueue = LayoutQueue()
+        self.layoutqueue = LayoutQueue(xoffset,yoffset,color1,color2)
+        self.score = 0
 
     def KeydownHandler(self, key):
         if key == K_x:
@@ -56,7 +59,7 @@ class BlockManager(pygame.sprite.Group):
                 self.block.MoveRight()
         elif key == K_DOWN:
             self.oldwaitcount = self.waitcount
-            self.waitcount = 0.08
+            self.waitcount = fastfall
 
     def KeyupHandler(self, key):
         if key == K_DOWN:
@@ -137,6 +140,8 @@ class BlockManager(pygame.sprite.Group):
                     self.block.MoveUp()
                     self.fallingblock = False
                     for sp in self.block.sprites():
+                        if sp.grid[1] <2:
+                            return -1
                         self.grid[sp.grid] = sp
                         self.add(sp)
                         self.droppingtiles = True
@@ -145,6 +150,7 @@ class BlockManager(pygame.sprite.Group):
             self.block = Block(self.color1,self.color2, self.layoutqueue.GetNext()\
                                ,griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2, (7,0))
+            self.waitcount = self.oldwaitcount
             self.fallingblock = True
                         
         # Animates tiles dropping into gaps
@@ -167,8 +173,10 @@ class BlockManager(pygame.sprite.Group):
                 self.Check2x2(sp)
         
         self.wiper.update(time)
-        if self.dmanager.update(self.wiper.sprite, self.grid):
+        scorechange = self.dmanager.update(self.wiper.sprite,self.grid)
+        if scorechange:
             self.droppingtiles = True
+        return scorechange
 
     def swap(self, tile, loc):
         self.grid[tile.grid] = tile.rect.topleft
@@ -181,6 +189,7 @@ class BlockManager(pygame.sprite.Group):
         pygame.sprite.Group.draw(self,Surface)
         self.block.draw(Surface)
         self.wiper.draw(Surface)
+        self.layoutqueue.draw(Surface)
 
 class DestructionManager():
     def __init__(self):
@@ -203,13 +212,14 @@ class DestructionManager():
             self.destroyers[-1].addtiles(sprites)
 
     def update(self, wiper, grid):
-        anykilled = False
+        score = 0
         for dst in self.destroyers:
-            if dst.update(wiper, grid):
-                anykilled = True
+            dstscore = dst.update(wiper,grid)
+            if dstscore:
+                score += dstscore
             if not dst:
                 self.destroyers.remove(dst)
-        return anykilled
+        return score
 
     # Removes tile from its TileDestroyer, along with all other condemned tiles
     # Returns a list of all pardoned tiles
@@ -233,14 +243,17 @@ class TileDestroyer(pygame.sprite.Group):
         self.killready = False
         self.kill = False
         self.tilewiper = pygame.Surface((2,tilesize[1]))
+        self.score = 0
 
     def addtiles(self, sprites):
+        self.score *= 2
         if sprites:
             self.tilewiper.fill(sprites[0].color1)
         for sprite in sprites:
             self.add(sprite)
             if sprite.rect.right > self.maxX:
                 self.maxX = sprite.rect.right
+        self.score += len(sprites)
 
     def update(self, wiper, grid):
         if pygame.sprite.spritecollideany(wiper,self):
@@ -253,30 +266,61 @@ class TileDestroyer(pygame.sprite.Group):
                 for sp in self.sprites():
                     grid[(sp.grid)] = sp.rect.topleft
                     sp.kill()
-                return True
+                return self.score
             else:
                 self.killready = True
+        return 0
 
 # Queue of layouts to use in new blocks
 class LayoutQueue():
-    def __init__(self):
-        self.length = 4
-        self.FillQueueTest()
+    def __init__(self,xoffset,yoffset,color1,color2):
+        self.xoffset = xoffset
+        self.yoffset = yoffset
+        self.color1 = color1
+        self.color2 = color2
+        self.length = 4        
+        self.FillQueue()
+        self.blocks = []
+        for i in range(self.length):
+            self.blocks.append(Block(color1,color2,self.layouts[i], \
+                                     xoffset-2*tilesize[0]-15, \
+                                  yoffset-tilesize[1]+3*tilesize[1]*i))
+            for i in range(rnd.randint(0,3)):
+                self.blocks[-1].RotateClockwise()
 
     # Fills Queue
     def FillQueue(self):
-        self.blocks = []
+        self.layouts = []
         for i in range(self.length):
-            self.blocks.append(rnd.randint(1,6))
+            self.layouts.append(rnd.randint(1,6))
 
     # Fills queue with predetermined layouts for testing purposes
     def FillQueueTest(self):
-        self.blocks = [1,3,5,1]
+        self.layouts = [1,3,5,1]
 
     def GetNext(self):
-        layout = self.blocks.pop(0)
-        self.blocks.append(rnd.randint(1,6))
+        self.layouts.pop(0)
+        choices = [1,2,3,4,5,6]
+        for l in self.layouts:
+            if l in choices:
+                choices.remove(l)
+        self.layouts.append(choices[rnd.randint(0,len(choices)-1)])
+        layout = self.blocks[0].layout
+        self.blocks.pop(0)
+        for b in self.blocks:
+            b.MoveUp()
+            b.MoveUp()
+            b.MoveUp()
+        self.blocks.append(Block(self.color1,self.color2,self.layouts[-1],\
+                              self.xoffset-2*tilesize[0]-15, \
+                                 self.yoffset-tilesize[1]+3*tilesize[1]*3))
+        for i in range(rnd.randint(0,3)):
+            self.blocks[-1].RotateClockwise()
         return layout
+
+    def draw(self,surface):
+        for b in self.blocks:
+            b.draw(surface)
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, color1, color2):
@@ -352,37 +396,46 @@ class Tile(pygame.sprite.Sprite):
 # 0 1
 # 3 2
 class Block(pygame.sprite.Group):
-    def __init__(self, color1, color2, lay, x=0, y=0, grid=(0,0)):
+    def __init__(self, color1, color2, lay, x, y, grid=(0,0)):
         pygame.sprite.Group.__init__(self)
-        if lay >= 0 and lay <= 6:
-            layout = layouts[lay]
-        else:
-            layout = layouts[rnd.randint(1,6)]        
-        # x and y are the coordinates of the top left corner of block
-        for i in layout:
-            if i == 0:
-                self.add(Tile(color1,color2))
+        if isinstance(lay,int):
+            if lay >= 0 and lay <= 6:
+                self.layout = layouts[lay]
             else:
-                self.add(Tile(color2,color1))
+                self.layout = layouts[rnd.randint(1,6)]
+        elif isinstance(lay,list):
+            self.layout = lay
+        # x and y are the coordinates of the top left corner of block
+##        for i in self.layout:
+##            if i == 0:
+##                self.add(Tile(color1,color2))
+##            else:
+##                self.add(Tile(color2,color1))
         self.tiledict = {}        
         for i in range(4):
-            if i == 0:
-                self.sprites()[i].rect.left = x
-                self.sprites()[i].rect.top = y
-                self.sprites()[i].grid = grid
-            elif i == 1:
-                self.sprites()[i].rect.left = x + tilesize[0]
-                self.sprites()[i].rect.top = y
-                self.sprites()[i].grid = (grid[0]+1,grid[1])
-            elif i == 2:
-                self.sprites()[i].rect.left = x + tilesize[0]
-                self.sprites()[i].rect.top = y + tilesize[1]
-                self.sprites()[i].grid = (grid[0]+1,grid[1]+1)
+            if self.layout[i] == 0:
+                temp = Tile(color1,color2)
+                self.add(temp)
             else:
-                self.sprites()[i].rect.left = x
-                self.sprites()[i].rect.top = y + tilesize[1]
-                self.sprites()[i].grid = (grid[0],grid[1]+1)
-            self.tiledict[i]=self.sprites()[i]
+                temp = Tile(color2,color1)
+                self.add(temp)
+            if i == 0:
+                temp.rect.left = x
+                temp.rect.top = y
+                temp.grid = grid
+            elif i == 1:
+                temp.rect.left = x + tilesize[0]
+                temp.rect.top = y
+                temp.grid = (grid[0]+1,grid[1])
+            elif i == 2:
+                temp.rect.left = x + tilesize[0]
+                temp.rect.top = y + tilesize[1]
+                temp.grid = (grid[0]+1,grid[1]+1)
+            else:
+                temp.rect.left = x
+                temp.rect.top = y + tilesize[1]
+                temp.grid = (grid[0],grid[1]+1)
+            self.tiledict[i]=temp
         self.x = self.sprites()[0].rect.left
         self.y = self.sprites()[0].rect.top
 
@@ -399,6 +452,8 @@ class Block(pygame.sprite.Group):
         self.tiledict[1] = s2
         self.tiledict[2] = s3
         self.tiledict[3] = s0
+        temp = self.layout.pop(0)
+        self.layout.append(temp)
 
     def RotateClockwise(self):
         self.tiledict[0].MoveRight()
@@ -413,6 +468,8 @@ class Block(pygame.sprite.Group):
         self.tiledict[1] = s0
         self.tiledict[2] = s1
         self.tiledict[3] = s2
+        temp = self.layout.pop()
+        self.layout.insert(0,temp)
 
     def MoveRight(self):
         x_list = []
