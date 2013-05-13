@@ -78,8 +78,8 @@ def main():
             inf.update(scorechange)
         screen.fill(charcoal)
         manager.draw(screen)
-        menu.draw(screen)
         inf.draw(screen)
+        menu.draw(screen)
         pygame.display.flip()
 
 if __name__ == '__main__':
