@@ -36,7 +36,8 @@ def main():
             pygame.mixer.music.load(songs[i])
         else:
             pygame.mixer.music.queue(songs[i])
-    pygame.mixer.music.play()
+    if songs:
+        pygame.mixer.music.play()
 
     while 1:
         time = clock.tick(60)/1000
