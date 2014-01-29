@@ -7,9 +7,10 @@ white = (255,255,255)
 black = (0,0,0)
 grey_lite = (128,128,128)
 yellow = (255,255,0)
+# 6种砖块的组合 0 ， 1 代表两种不同颜色
 layouts = dict([(1,[0,0,0,0]), (2,[0,0,0,1]), (3,[0,0,1,1]), (4, [1,0,1,1]),
                (5, [1,1,1,1]), (6, [0,1,0,1])])
-tilesize = (45,45)
+tilesize = (45,45)     # 每个小格子的大小
 liningsize = (tilesize[0]-4,tilesize[1]-4)
 innersize = (liningsize[0]-4,liningsize[1]-4)
 flagliningsize = (tilesize[0]-2,tilesize[1]-2)
@@ -332,6 +333,10 @@ class LayoutQueue():
             b.draw(surface)
 
 class Tile(pygame.sprite.Sprite):
+    # 一个block由4个tile构成
+    #   0    1
+    #   3    2
+    
     def __init__(self, color1, color2):
         pygame.sprite.Sprite.__init__(self)
         self.color1 = color1
@@ -404,10 +409,12 @@ class Tile(pygame.sprite.Sprite):
 # Returns a random block, tiles arraged
 # 0 1
 # 3 2
+# 一个block 包含4个tile
 class Block(pygame.sprite.Group):
     def __init__(self, color1, color2, lay, x, y, grid=(0,0)):
         pygame.sprite.Group.__init__(self)
         if isinstance(lay,int):
+            # 6 种砖块中的其中一种                       
             if lay >= 0 and lay <= 6:
                 self.layout = layouts[lay]
             else:
@@ -420,7 +427,8 @@ class Block(pygame.sprite.Group):
 ##                self.add(Tile(color1,color2))
 ##            else:
 ##                self.add(Tile(color2,color1))
-        self.tiledict = {}        
+        self.tiledict = {}   # 0 , 1 , 2 , 3 分别作为key
+        # 构造 4 个tile 
         for i in range(4):
             if self.layout[i] == 0:
                 temp = Tile(color1,color2)
