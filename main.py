@@ -51,7 +51,7 @@ def main():
             songlengths.append(pygame.mixer.Sound(song).get_length())
 
     while 1:
-        time = clock.tick(60)/1000
+        time = clock.tick(60)/1000.0
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.mixer.music.stop()
