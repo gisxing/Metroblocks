@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#coding=utf-8
 # Andrew Quintanilla
 # Handles blocks
 import pygame, random as rnd
@@ -120,7 +122,7 @@ class BlockManager(pygame.sprite.Group):
                     templist = [tile, self.grid[locleft], self.grid[locbelow],\
                                 self.grid[locbelowleft]]
                     
-                    self.dmanager.add(templist)
+                    self.dmanager.add(templist)  # 把标志好的tile加入dmanager
                 # Check tiles to the right
                 if loc[0] < gridsize[0]-1 and \
                    not (isinstance(self.grid[locright],tuple) or \
@@ -135,7 +137,7 @@ class BlockManager(pygame.sprite.Group):
                     self.grid[locbelowright].Flag(2)
                     templist = [tile,self.grid[locright],self.grid[locbelow],\
                                 self.grid[locbelowright]]
-                    self.dmanager.add(templist)
+                    self.dmanager.add(templist)    # 把标志好的tile加入dmanager
 
     def update(self, time):        
         if self.fallingblock:
@@ -146,17 +148,20 @@ class BlockManager(pygame.sprite.Group):
                 self.fallwait = 0.0
                 # Triggers when a block lands
                 if self.CheckBlockCollision():
+                    # 这块block下降时发生了碰撞，向上返回一层，并且尝试进行 block 中的 tile的下降                
                     self.block.MoveUp()
                     self.fallingblock = False
                     for sp in self.block.sprites():
+                        #sp.grid 是一个 (0,0) 的表示位置的元组     
                         if sp.grid[1] <2:
-                            self.score = -1
+                            self.score = -1   # game over !
                             return
-                        self.grid[sp.grid] = sp
+                        self.grid[sp.grid] = sp    # 从一个tuple 改成 一个sprite(tile)
                         self.add(sp)
                         self.droppingtiles = True
-                    self.block.empty()
+                    self.block.empty()    #删除这个sprite group中的所有 sprite
         else:
+            # self.fallingblck 为 False , 则从队列中获得一块 block                        
             self.block = Block(self.color1,self.color2, self.layoutqueue.GetNext()\
                                ,griddimensions[0]/2-tilesize[0]+self.xoffset,
                                self.yoffset-tilesize[1]*2, (7,0))
@@ -171,7 +176,8 @@ class BlockManager(pygame.sprite.Group):
                 gridbelow = (sp.grid[0],sp.grid[1]+1)
                 if gridbelow[1] < gridsize[1] and \
                     isinstance(self.grid[gridbelow],tuple):
-                    self.swap(sp, gridbelow)
+                    # 还没到最底层，并且下一层是空格时                    
+                    self.swap(sp, gridbelow)     #对调两者
                     sp.moved = True
                     self.droppingtiles = True
                     if sp.flagged:
