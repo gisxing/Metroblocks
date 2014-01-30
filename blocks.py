@@ -183,7 +183,8 @@ class BlockManager(pygame.sprite.Group):
                     if sp.flagged:
                         tocheck.extend(self.dmanager.Pardon(sp))
                 elif sp.moved:
-                    tocheck.append(sp)
+                    # 刚移动到当前位置，并且已经不能再向下跌落 （停止跌落的tile)
+                    tocheck.append(sp)    # 添加到等待检查的 list 中
                     sp.moved = False
             for sp in tocheck:
                 self.Check2x2(sp)
@@ -192,7 +193,7 @@ class BlockManager(pygame.sprite.Group):
         scorechange = self.dmanager.update(self.wiper.sprite,self.grid)
         if scorechange:
             self.score += scorechange
-            self.droppingtiles = True
+            self.droppingtiles = True    # 发生得分，标志 dropingtiles 为 true  继续下降其他可能的 tiles
 
     def swap(self, tile, loc):
         self.grid[tile.grid] = tile.rect.topleft
@@ -224,6 +225,7 @@ class DestructionManager():
                         return
                 count += 1
         if not added:
+            # 没有添加的情况
             self.destroyers.append(TileDestroyer())
             self.destroyers[-1].addtiles(sprites)
 
@@ -239,6 +241,8 @@ class DestructionManager():
 
     # Removes tile from its TileDestroyer, along with all other condemned tiles
     # Returns a list of all pardoned tiles
+    # 如果tile 存在于某一个 destroyers中 ， 则把它里面的tiles 全部移出来，并且清空这个destroyers，
+    # 重新标记成 unfalg 
     def Pardon(self, tile):
         pardoned = []
         for dst in self.destroyers:
