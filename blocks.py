@@ -150,17 +150,6 @@ class BlockManager(pygame.sprite.Group):
                 self.fallwait = 0.0
                 # Triggers when a block lands
                 if self.CheckBlockCollision():
-                    self.block.MoveUp()
-                    self.fallingblock = False
-                    for sp in self.block.sprites():
-                        if sp.grid[1] <2:
-                            self.score = -1
-                            return
-                        self.grid[sp.grid] = sp
-                        self.add(sp)
-                        self.droppingtiles = True
-                    self.block.empty()
-        else:
                     # 这块block下降时发生了碰撞，向上返回一层，并且尝试进行 block 中的 tile的下降                
                     self.block.MoveUp()
                     self.fallingblock = False
