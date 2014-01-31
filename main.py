@@ -34,7 +34,7 @@ def main():
     pygame.mouse.set_visible(mousevisible)    
     color1 = red
     color2 = white
-    manager = blocks.BlockManager(color1,color2,100,1.5,
+    manager = blocks.BlockManager(color1,color2,125,1.5,
                                   (screendimensions[0]-griddimensions[0])/2,
                                   screendimensions[1]-griddimensions[1]-20)
     inf = info.Info(screendimensions[0],screendimensions[1])
@@ -52,7 +52,10 @@ def main():
 
     while 1:
         time = clock.tick(60)/1000.0
+<<<<<<< HEAD
 
+=======
+>>>>>>> a68312f863c82e6ed7bc9d4e859d44dd2231986b
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.mixer.music.stop()
