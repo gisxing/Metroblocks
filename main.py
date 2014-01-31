@@ -52,10 +52,6 @@ def main():
 
     while 1:
         time = clock.tick(60)/1000.0
-<<<<<<< HEAD
-
-=======
->>>>>>> a68312f863c82e6ed7bc9d4e859d44dd2231986b
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.mixer.music.stop()
